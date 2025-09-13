@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redis 性能测试工具</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.css" rel="stylesheet">
+    <link href="style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <header class="header">
+            <h1><i class="fas fa-tachometer-alt"></i> Redis 性能测试工具</h1>
+            <div class="connection-status" id="connectionStatus">
+                <i class="fas fa-circle"></i>
+                <span>未连接</span>
+            </div>
+        </header>
+
+        <!-- 主要内容区 -->
+        <main class="main-content">
+            <!-- 配置面板 -->
+            <div class="config-panel">
+                <h2><i class="fas fa-cog"></i> 测试配置</h2>
+                
+                <div class="config-grid">
+                    <!-- Redis 连接配置 -->
+                    <div class="config-group">
+                        <h3>Redis 连接</h3>
+                        <div class="form-group">
+                            <label for="redisHost">主机地址</label>
+                            <input type="text" id="redisHost" value="localhost" placeholder="localhost">
+                        </div>
+                        <div class="form-group">
+                            <label for="redisPort">端口</label>
+                            <input type="number" id="redisPort" value="6379" placeholder="6379">
+                        </div>
+                        <div class="form-group">
+                            <label for="redisPassword">密码 (可选)</label>
+                            <input type="password" id="redisPassword" placeholder="留空如无密码">
+                        </div>
+                        <div class="form-group">
+                            <label for="redisDatabase">数据库</label>
+                            <input type="number" id="redisDatabase" value="0" min="0" max="15">
+                        </div>
+                    </div>
+
+                    <!-- 测试参数配置 -->
+                    <div class="config-group">
+                        <h3>测试参数</h3>
+                        <div class="form-group">
+                            <label for="testDuration">测试时长 (秒)</label>
+                            <input type="number" id="testDuration" value="30" min="1" max="300">
+                        </div>
+                        <div class="form-group">
+                            <label for="concurrency">并发数</label>
+                            <input type="number" id="concurrency" value="50" min="1" max="1000">
+                        </div>
+                        <div class="form-group">
+                            <label for="keySize">键长度 (字节)</label>
+                            <input type="number" id="keySize" value="64" min="1" max="1024">
+                        </div>
+                        <div class="form-group">
+                            <label for="valueSize">值大小 (字节)</label>
+                            <input type="number" id="valueSize" value="1024" min="1" max="10240">
+                        </div>
+                    </div>
+
+                    <!-- 操作类型选择 -->
+                    <div class="config-group">
+                        <h3>操作类型</h3>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="testSet" checked>
+                                <span class="checkmark"></span>
+                                SET (字符串设置)
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="testGet" checked>
+                                <span class="checkmark"></span>
+                                GET (字符串获取)
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="testHset" checked>
+                                <span class="checkmark"></span>
+                                HSET (哈希设置)
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="testHget" checked>
+                                <span class="checkmark"></span>
+                                HGET (哈希获取)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 控制按钮 -->
+                <div class="control-buttons">
+                    <button id="startTestBtn" class="btn btn-primary">
+                        <i class="fas fa-play"></i> 开始测试
+                    </button>
+                    <button id="stopTestBtn" class="btn btn-danger" disabled>
+                        <i class="fas fa-stop"></i> 停止测试
+                    </button>
+                    <button id="clearResultsBtn" class="btn btn-secondary">
+                        <i class="fas fa-eraser"></i> 清除结果
+                    </button>
+                </div>
+            </div>
+
+            <!-- 结果面板 -->
+            <div class="results-panel">
+                <!-- 测试状态 -->
+                <div class="status-section" id="statusSection">
+                    <h2><i class="fas fa-info-circle"></i> 测试状态</h2>
+                    <div class="status-content">
+                        <div class="status-item">
+                            <span class="label">状态:</span>
+                            <span class="value" id="testStatus">待机</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">进度:</span>
+                            <div class="progress-container">
+                                <div class="progress-bar" id="progressBar">
+                                    <div class="progress-fill" id="progressFill"></div>
+                                </div>
+                                <span class="progress-text" id="progressText">0%</span>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">当前操作:</span>
+                            <span class="value" id="currentOperation">无</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 实时性能指标 -->
+                <div class="metrics-section">
+                    <h2><i class="fas fa-chart-line"></i> 实时性能指标</h2>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-icon"><i class="fas fa-rocket"></i></div>
+                            <div class="metric-content">
+                                <div class="metric-value" id="opsPerSecond">0</div>
+                                <div class="metric-label">操作/秒</div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon"><i class="fas fa-clock"></i></div>
+                            <div class="metric-content">
+                                <div class="metric-value" id="avgLatency">0ms</div>
+                                <div class="metric-label">平均延迟</div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon"><i class="fas fa-check-circle"></i></div>
+                            <div class="metric-content">
+                                <div class="metric-value" id="successRate">0%</div>
+                                <div class="metric-label">成功率</div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                            <div class="metric-content">
+                                <div class="metric-value" id="errorCount">0</div>
+                                <div class="metric-label">错误数</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 图表区域 -->
+                <div class="charts-section">
+                    <h2><i class="fas fa-chart-bar"></i> 性能图表</h2>
+                    <div class="charts-grid">
+                        <div class="chart-container">
+                            <canvas id="opsChart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="latencyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 详细结果 -->
+                <div class="results-section" id="resultsSection">
+                    <h2><i class="fas fa-table"></i> 详细结果</h2>
+                    <div class="results-content" id="resultsContent">
+                        <div class="no-results">
+                            <i class="fas fa-inbox"></i>
+                            <p>暂无测试结果</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 日志面板 -->
+                <div class="logs-section">
+                    <h2><i class="fas fa-file-alt"></i> 测试日志</h2>
+                    <div class="logs-content" id="logsContent"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 脚本文件 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
